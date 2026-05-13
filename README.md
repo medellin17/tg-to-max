@@ -74,6 +74,29 @@ python -m venv .venv
 
 При первом запуске Telethon запросит номер телефона и код подтверждения из Telegram.
 
+## Запуск как daemon (Linux)
+
+```bash
+# установка
+sudo mkdir -p /opt/tg-to-max
+sudo cp -r * /opt/tg-to-max/
+cd /opt/tg-to-max
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+cp .env.example .env
+# заполни .env
+.venv/bin/python main.py   # первый запуск — авторизация Telethon
+# после авторизации — CTRL+C
+
+# systemd
+sudo cp tg-to-max.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now tg-to-max
+
+# логи
+journalctl -u tg-to-max -f
+```
+
 ## Безопасность
 
 - Max (через GREEN-API) имеет доступ **только** к `uploads/`

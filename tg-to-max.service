@@ -1,0 +1,15 @@
+[Unit]
+Description=TG-to-Max file bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/tg-to-max
+ExecStart=/opt/tg-to-max/.venv/bin/python main.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
