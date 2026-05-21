@@ -1,6 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
+from telethon.tl.types import Message
 from config import Config
 from telegram_listener import TelegramListener
 from max_client import MaxSender
@@ -34,23 +35,38 @@ async def main():
     chat_id = max_client.resolve_chat_id(cfg.MAX_TARGET_PHONE)
     print(f"chatId для {cfg.MAX_TARGET_PHONE}: {chat_id}")
 
-    async def on_file(file_path: str, caption: str, msg):
-        try:
-            print(f"Max: отправляю {file_path}...")
-            result = max_client.send_file(file_path=file_path, caption=caption)
-            print(f"Max: отправлено! {result}")
-            await msg.reply(f"✅ Отправлено в Max: `{Path(file_path).name}`")
-        except Exception as e:
-            print(f"Max: ошибка: {e}")
-            await msg.reply(f"❌ Ошибка отправки в Max: {e}")
-        finally:
+    async def on_files(files: list[tuple[str, str, Message]]):
+        sent, errors = [], []
+        for file_path, caption, msg in files:
             try:
-                os.remove(file_path)
-                print(f"Удалил локальный файл: {file_path}")
-            except OSError:
-                pass
+                print(f"Max: отправляю {file_path}...")
+                result = max_client.send_file(file_path=file_path, caption=caption)
+                print(f"Max: отправлено! {result}")
+                sent.append(Path(file_path).name)
+            except Exception as e:
+                print(f"Max: ошибка: {e}")
+                errors.append(Path(file_path).name)
+            finally:
+                try:
+                    os.remove(file_path)
+                    print(f"Удалил локальный файл: {file_path}")
+                except OSError:
+                    pass
 
-    tg.on_file(on_file)
+        ref_msg = files[0][2]
+        if len(files) == 1:
+            name = sent[0] if sent else errors[0]
+            if sent:
+                await ref_msg.reply(f"✅ Отправлено в Max: `{name}`")
+            else:
+                await ref_msg.reply(f"❌ Ошибка отправки в Max: {errors[0]}")
+        else:
+            if sent:
+                await ref_msg.reply(f"✅ Отправлено в Max: {len(sent)} файлов")
+            if errors:
+                await ref_msg.reply(f"❌ Ошибки: {', '.join(errors)}")
+
+    tg.on_file(on_files)
 
     print("Запуск... жду файлы в Telegram")
     await tg.start()

@@ -11,6 +11,7 @@ class TelegramListener:
         self.upload_dir = Path(upload_dir)
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self._on_file_callback = None
+        self._pending_groups: dict[int, list[Message]] = {}
 
     def on_file(self, callback):
         self._on_file_callback = callback
@@ -42,6 +43,13 @@ class TelegramListener:
         if not msg.file:
             return
 
+        if msg.grouped_id:
+            if msg.grouped_id not in self._pending_groups:
+                self._pending_groups[msg.grouped_id] = []
+                asyncio.create_task(self._process_group(msg.grouped_id))
+            self._pending_groups[msg.grouped_id].append(msg)
+            return
+
         file_path = await self._download_with_retry(msg)
         if not file_path:
             print("Telegram: не смог скачать файл после 3 попыток")
@@ -49,11 +57,28 @@ class TelegramListener:
             return
 
         print(f"Telegram: скачал файл: {file_path}")
-
-        caption = msg.message or Path(file_path).name
+        caption = msg.message or ""
 
         if self._on_file_callback:
-            await self._on_file_callback(file_path, caption, msg)
+            await self._on_file_callback([(file_path, caption, msg)])
+
+    async def _process_group(self, grouped_id: int):
+        await asyncio.sleep(0.7)
+
+        messages = self._pending_groups.pop(grouped_id, [])
+        if not messages:
+            return
+
+        results = []
+        for msg in messages:
+            file_path = await self._download_with_retry(msg)
+            if file_path:
+                print(f"Telegram: скачал файл: {file_path}")
+                caption = msg.message or ""
+                results.append((file_path, caption, msg))
+
+        if results and self._on_file_callback:
+            await self._on_file_callback(results)
 
     async def reply(self, event, text: str):
         await event.reply(text)
