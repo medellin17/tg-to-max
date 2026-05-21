@@ -11,10 +11,14 @@ class TelegramListener:
         self.upload_dir = Path(upload_dir)
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         self._on_file_callback = None
+        self._on_text_callback = None
         self._pending_groups: dict[int, list[Message]] = {}
 
     def on_file(self, callback):
         self._on_file_callback = callback
+
+    def on_text(self, callback):
+        self._on_text_callback = callback
 
     async def start(self):
         self.client.add_event_handler(self._handle_message, events.NewMessage)
@@ -41,6 +45,8 @@ class TelegramListener:
             return
 
         if not msg.file:
+            if msg.message and self._on_text_callback:
+                await self._on_text_callback(msg.message, msg)
             return
 
         if msg.grouped_id:
@@ -70,11 +76,11 @@ class TelegramListener:
             return
 
         results = []
-        for msg in messages:
+        for i, msg in enumerate(messages):
             file_path = await self._download_with_retry(msg)
             if file_path:
                 print(f"Telegram: скачал файл: {file_path}")
-                caption = msg.message or ""
+                caption = msg.message if i == 0 else ""
                 results.append((file_path, caption, msg))
 
         if results and self._on_file_callback:

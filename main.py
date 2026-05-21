@@ -66,7 +66,18 @@ async def main():
             if errors:
                 await ref_msg.reply(f"❌ Ошибки: {', '.join(errors)}")
 
+    async def on_text(text: str, msg: Message):
+        try:
+            print(f"Max: отправляю текст: {text[:50]}...")
+            result = max_client.send_text(text)
+            print(f"Max: текст отправлен! {result}")
+            await msg.reply(f"✅ Текст отправлен в Max")
+        except Exception as e:
+            print(f"Max: ошибка отправки текста: {e}")
+            await msg.reply(f"❌ Ошибка отправки текста в Max: {e}")
+
     tg.on_file(on_files)
+    tg.on_text(on_text)
 
     print("Запуск... жду файлы в Telegram")
     await tg.start()

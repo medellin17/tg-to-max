@@ -23,6 +23,19 @@ class MaxSender:
         self._chat_id = f"{phone}@c.us"
         return self._chat_id
 
+    def send_text(self, text: str) -> dict:
+        if not self._chat_id:
+            raise RuntimeError("chat_id not resolved. Call resolve_chat_id() first")
+
+        resp = self.api.sending.sendMessage(self._chat_id, text)
+
+        if hasattr(resp, "data"):
+            return resp.data
+        elif hasattr(resp, "code") and hasattr(resp, "error"):
+            raise RuntimeError(f"GREEN-API error (code={resp.code}): {resp.error}")
+        else:
+            raise RuntimeError(f"GREEN-API unexpected response: {resp}")
+
     def send_file(self, file_path: str, caption: str = "") -> dict:
         p = Path(file_path)
         if not p.exists():
