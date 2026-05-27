@@ -41,7 +41,7 @@ class TelegramListener:
 
     async def _handle_message(self, event: events.NewMessage.Event):
         msg: Message = event.message
-        if not msg.out and msg.sender_id not in self.allowed_users:
+        if msg.out or msg.sender_id not in self.allowed_users:
             return
 
         if not msg.file:
